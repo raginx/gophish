@@ -36,7 +36,7 @@ jobs:
                       arch: '386'
         steps:
             - name: Set up Go
-              uses: actions/setup-go@v2
+              uses: actions/setup-go@v7
               with:
                 go-version: 1.22
             - if: matrix.os == 'ubuntu-latest'
