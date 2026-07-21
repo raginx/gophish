@@ -4,13 +4,29 @@ updates:
     directory: "/"
     schedule:
       interval: "weekly"
+    groups:
+      go-minor-patch:
+        update-types:
+          - "minor"
+          - "patch"
+    # Major version bumps stay as individual PRs - more likely to need a
+    # closer look (breaking API changes) than a batch review would give.
 
   - package-ecosystem: "npm"
     directory: "/"
     schedule:
       interval: "weekly"
+    groups:
+      npm-minor-patch:
+        update-types:
+          - "minor"
+          - "patch"
 
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
       interval: "weekly"
+    groups:
+      github-actions:
+        patterns:
+          - "*"
