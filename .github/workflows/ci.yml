@@ -9,7 +9,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        goVer: [1.21, 1.22, 1.23]
+        goVer: ["1.25", "1.26"]
 
     steps:
     - name: Set up Go ${{ matrix.goVer }}
@@ -45,7 +45,7 @@ jobs:
     - name: Set up Go
       uses: actions/setup-go@v5
       with:
-        go-version: "1.23"
+        go-version: "1.26"
 
     - name: golangci-lint
       uses: golangci/golangci-lint-action@v6
@@ -65,9 +65,9 @@ jobs:
     - name: Set up Go
       uses: actions/setup-go@v5
       with:
-        go-version: "1.23"
+        go-version: "1.26"
 
     - name: Run govulncheck
       uses: golang/govulncheck-action@v1
       with:
-        go-version-input: "1.23"
+        go-version-input: "1.26"

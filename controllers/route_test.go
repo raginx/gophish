@@ -45,6 +45,10 @@ func attemptLogin(t *testing.T, ctx *testContext, client *http.Client, username,
 
 	req.Header.Set("Cookie", resp.Header.Get("Set-Cookie"))
 	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
+	// A real browser submitting this same-origin form sends a matching
+	// Referer; gorilla/csrf now enforces that (fixed Referer validation,
+	// GO-2025-3607), so the test client must mimic it too.
+	req.Header.Set("Referer", fmt.Sprintf("%s/login", ctx.adminServer.URL))
 
 	resp, err = client.Do(req)
 	if err != nil {
