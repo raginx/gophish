@@ -118,7 +118,8 @@ func dialHost(ctx context.Context, dialer Dialer) (Sender, error) {
 		case <-ctx.Done():
 			return nil, nil
 		default:
-			break
+			// break here was a no-op (breaking the select, which the
+			// default case falls out of anyway) rather than the loop
 		}
 		sender, err = dialer.Dial()
 		if err == nil {
@@ -152,7 +153,6 @@ func sendMail(ctx context.Context, dialer Dialer, ms []Mail) {
 		case <-ctx.Done():
 			return
 		default:
-			break
 		}
 		message.Reset()
 		err = m.Generate(message)

@@ -101,7 +101,6 @@ var allInternal = []string{
 	"224.0.0.0/4",        // Multicast
 	"240.0.0.0/4",        // Reserved
 	"255.255.255.255/32", // Broadcast
-	"::/0",               // Default route
 	"::/128",             // Unspecified address
 	"::1/128",            // IPv6 loopback
 	"::ffff:0:0/96",      // IPv4 mapped addresses.

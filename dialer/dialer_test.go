@@ -83,3 +83,25 @@ func TestSingleIP(t *testing.T) {
 	}
 	DefaultDialer.SetAllowedHosts(orig)
 }
+
+// TestAllowedHostsDoesNotBlockExternalIPv6 guards against a regression where
+// allInternal contained "::/0" (all of IPv6, not just internal ranges): once
+// any allowed_internal_hosts entry was configured, every IPv6 destination -
+// including legitimate external ones - was denied.
+func TestAllowedHostsDoesNotBlockExternalIPv6(t *testing.T) {
+	orig := DefaultDialer.AllowedHosts()
+	if err := DefaultDialer.SetAllowedHosts([]string{"127.0.0.1"}); err != nil {
+		t.Fatalf("error setting allowed hosts: %v", err)
+	}
+	control := DefaultDialer.Dialer().Control
+	conn := new(syscall.RawConn)
+
+	externalIPv6 := "2606:4700:4700::1111" // a public IPv6 address
+	got := control("tcp6", fmt.Sprintf("[%s]:80", externalIPv6), *conn)
+	if got != nil {
+		t.Fatalf("external IPv6 host incorrectly denied once allowed_internal_hosts was set. got %v", got)
+	}
+	if err := DefaultDialer.SetAllowedHosts(orig); err != nil {
+		t.Fatalf("error restoring allowed hosts: %v", err)
+	}
+}
