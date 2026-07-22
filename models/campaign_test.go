@@ -63,6 +63,63 @@ func (s *ModelsSuite) TestGenerateSendDate(c *check.C) {
 	}
 }
 
+// TestPostCampaignShufflesTargets ensures campaign results (and therefore
+// send order) aren't created in the same order targets were added to the
+// group - see #3167 upstream. With this many targets, a coincidental match
+// is astronomically unlikely, so this isn't a flaky test.
+func (s *ModelsSuite) TestPostCampaignShufflesTargets(c *check.C) {
+	group := Group{Name: "Shuffle Test Group"}
+	numTargets := 30
+	for i := 0; i < numTargets; i++ {
+		group.Targets = append(group.Targets, Target{
+			BaseRecipient: BaseRecipient{
+				Email:     fmt.Sprintf("target%02d@example.com", i),
+				FirstName: "Target",
+				LastName:  fmt.Sprintf("%02d", i),
+			},
+		})
+	}
+	group.UserId = 1
+	c.Assert(PostGroup(&group), check.Equals, nil)
+
+	template := Template{Name: "Shuffle Test Template"}
+	template.Subject = "{{.RId}} - Subject"
+	template.Text = "{{.RId}} - Text"
+	template.HTML = "{{.RId}} - HTML"
+	template.UserId = 1
+	c.Assert(PostTemplate(&template), check.Equals, nil)
+
+	page := Page{Name: "Shuffle Test Page"}
+	page.HTML = "<html>Test</html>"
+	page.UserId = 1
+	c.Assert(PostPage(&page), check.Equals, nil)
+
+	smtp := SMTP{Name: "Shuffle Test SMTP"}
+	smtp.UserId = 1
+	smtp.Host = "example.com"
+	smtp.FromAddress = "test@test.com"
+	c.Assert(PostSMTP(&smtp), check.Equals, nil)
+
+	campaign := Campaign{Name: "Shuffle Test Campaign"}
+	campaign.UserId = 1
+	campaign.Template = template
+	campaign.Page = page
+	campaign.SMTP = smtp
+	campaign.Groups = []Group{group}
+
+	c.Assert(PostCampaign(&campaign, campaign.UserId), check.Equals, nil)
+	c.Assert(len(campaign.Results), check.Equals, numTargets)
+
+	inOriginalOrder := true
+	for i, r := range campaign.Results {
+		if r.Email != group.Targets[i].Email {
+			inOriginalOrder = false
+			break
+		}
+	}
+	c.Assert(inOriginalOrder, check.Equals, false)
+}
+
 func (s *ModelsSuite) TestCampaignDateValidation(c *check.C) {
 	campaign := s.createCampaignDependencies(c)
 	// If both are zero, then the campaign should start immediately with no

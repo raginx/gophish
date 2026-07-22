@@ -2,6 +2,7 @@ package models
 
 import (
 	"errors"
+	"math/rand"
 	"net/url"
 	"time"
 
@@ -552,8 +553,17 @@ func PostCampaign(c *Campaign, uid int64) error {
 	recipientIndex := 0
 	tx := db.Begin()
 	for _, g := range c.Groups {
+		// Shuffle a copy of the group's targets so that send order (and
+		// therefore each recipient's scheduled send_date - see
+		// generateSendDate below) isn't predictable from e.g. the order
+		// targets were added to the group.
+		targets := make([]Target, len(g.Targets))
+		copy(targets, g.Targets)
+		rand.Shuffle(len(targets), func(i, j int) {
+			targets[i], targets[j] = targets[j], targets[i]
+		})
 		// Insert a result for each target in the group
-		for _, t := range g.Targets {
+		for _, t := range targets {
 			// Remove duplicate results - we should only
 			// send emails to unique email addresses.
 			if _, ok := resultMap[t.Email]; ok {
