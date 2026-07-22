@@ -26,6 +26,14 @@ go build
 
 After this, you should have a binary called ```gophish``` in the current directory.
 
+The built frontend assets (`static/js/dist/`, `static/css/dist/`) are checked
+into git, so this is all you need for a normal build. If you change anything
+under `static/js/src/` or `static/css/`, rebuild them with:
+```
+npm install
+npm run build
+```
+
 ### Docker
 You can also use upstream Gophish via the official Docker container [here](https://hub.docker.com/r/gophish/gophish/). This fork does not currently publish its own Docker images.
 
