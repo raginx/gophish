@@ -144,6 +144,9 @@ func (w *DefaultWorker) LaunchCampaign(c models.Campaign) {
 		}
 		mailEntries = append(mailEntries, m)
 	}
+	if len(mailEntries) == 0 {
+		return
+	}
 	w.mailer.Queue(mailEntries)
 }
 

@@ -81,6 +81,13 @@ func (mw *MailWorker) Start(ctx context.Context) {
 		case <-ctx.Done():
 			return
 		case ms := <-mw.queue:
+			if len(ms) == 0 {
+				// Guard against a caller queuing an empty batch (e.g. every
+				// entry got filtered out upstream) - indexing ms[0] below
+				// would otherwise panic and take down the whole process,
+				// not just this goroutine.
+				continue
+			}
 			go func(ctx context.Context, ms []Mail) {
 				dialer, err := ms[0].GetDialer()
 				if err != nil {

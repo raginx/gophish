@@ -100,6 +100,41 @@ func TestMailWorkerStart(t *testing.T) {
 	}
 }
 
+// TestMailWorkerStartEmptyQueue guards against a regression where queuing an
+// empty batch (e.g. every entry got filtered out upstream, see
+// worker.LaunchCampaign) caused Start's goroutine to index ms[0] on an empty
+// slice and panic, taking down the whole process rather than just that
+// goroutine. If Start survives the empty batch, a subsequent real batch
+// should still be processed normally.
+func TestMailWorkerStartEmptyQueue(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	mw := NewMailWorker()
+	go func(ctx context.Context) {
+		mw.Start(ctx)
+	}(ctx)
+
+	mw.Queue([]Mail{})
+
+	sender := newMockSender()
+	dialer := newMockDialer()
+	dialer.setDial(func() (Sender, error) {
+		return sender, nil
+	})
+
+	messages := generateMessages(dialer)
+	mw.Queue(messages)
+
+	got := []*mockMessage{}
+	for message := range sender.messageChan {
+		got = append(got, message)
+	}
+	if len(got) != len(messages) {
+		t.Fatalf("Unexpected number of messages received after an empty queue. Expected %d Got %d", len(messages), len(got))
+	}
+}
+
 func TestBackoff(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
