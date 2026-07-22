@@ -5,6 +5,7 @@ import (
 
 	"github.com/gophish/gophish/config"
 	"gopkg.in/check.v1"
+	"gorm.io/gorm"
 )
 
 // Hook up gocheck into the "go test" runner.
@@ -32,18 +33,24 @@ func (s *ModelsSuite) SetUpSuite(c *check.C) {
 func (s *ModelsSuite) TearDownTest(c *check.C) {
 	// Clear database tables between each test. If new tables are
 	// used in this test suite they will need to be cleaned up here.
-	db.Delete(Group{})
-	db.Delete(Target{})
-	db.Delete(GroupTarget{})
-	db.Delete(SMTP{})
-	db.Delete(Page{})
-	db.Delete(Result{})
-	db.Delete(MailLog{})
-	db.Delete(Campaign{})
+	// gorm v2 refuses table-wide deletes/updates without a WHERE clause
+	// as a safety check, so these intentional full-table cleanups need
+	// to opt in explicitly.
+	gdb := db.Session(&gorm.Session{AllowGlobalUpdate: true})
+	gdb.Delete(Group{})
+	gdb.Delete(Target{})
+	gdb.Delete(GroupTarget{})
+	gdb.Delete(SMTP{})
+	gdb.Delete(Page{})
+	gdb.Delete(Result{})
+	gdb.Delete(MailLog{})
+	gdb.Delete(Campaign{})
+	gdb.Delete(Template{})
+	gdb.Delete(Attachment{})
 
 	// Reset users table to default state.
 	db.Not("id", 1).Delete(User{})
-	db.Model(User{}).Update("username", "admin")
+	gdb.Model(User{}).Update("username", "admin")
 }
 
 func (s *ModelsSuite) createCampaignDependencies(ch *check.C, optional ...string) Campaign {
@@ -117,23 +124,30 @@ func setupBenchmark(b *testing.B) {
 }
 
 func tearDownBenchmark(b *testing.B) {
-	err := db.Close()
+	sqlDB, err := db.DB()
+	if err != nil {
+		b.Fatalf("error closing database: %v", err)
+	}
+	err = sqlDB.Close()
 	if err != nil {
 		b.Fatalf("error closing database: %v", err)
 	}
 }
 
 func resetBenchmark(b *testing.B) {
-	db.Delete(Group{})
-	db.Delete(Target{})
-	db.Delete(GroupTarget{})
-	db.Delete(SMTP{})
-	db.Delete(Page{})
-	db.Delete(Result{})
-	db.Delete(MailLog{})
-	db.Delete(Campaign{})
+	gdb := db.Session(&gorm.Session{AllowGlobalUpdate: true})
+	gdb.Delete(Group{})
+	gdb.Delete(Target{})
+	gdb.Delete(GroupTarget{})
+	gdb.Delete(SMTP{})
+	gdb.Delete(Page{})
+	gdb.Delete(Result{})
+	gdb.Delete(MailLog{})
+	gdb.Delete(Campaign{})
+	gdb.Delete(Template{})
+	gdb.Delete(Attachment{})
 
 	// Reset users table to default state.
 	db.Not("id", 1).Delete(User{})
-	db.Model(User{}).Update("username", "admin")
+	gdb.Model(User{}).Update("username", "admin")
 }

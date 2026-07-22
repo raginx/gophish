@@ -15,10 +15,8 @@ require (
 	github.com/gorilla/mux v1.8.1
 	github.com/gorilla/securecookie v1.1.2
 	github.com/gorilla/sessions v1.4.0
-	github.com/jinzhu/gorm v1.9.12
 	github.com/jordan-wright/email v4.0.1-0.20200824153738-3f5bafa1cd84+incompatible
 	github.com/jordan-wright/unindexed v0.0.0-20181209214434-78fa79113c0f
-	github.com/mattn/go-sqlite3 v2.0.3+incompatible
 	github.com/oschwald/maxminddb-golang v1.13.1
 	github.com/pressly/goose/v3 v3.27.2
 	github.com/sirupsen/logrus v1.9.4
@@ -26,6 +24,9 @@ require (
 	golang.org/x/time v0.15.0
 	gopkg.in/alecthomas/kingpin.v2 v2.2.6
 	gopkg.in/check.v1 v0.0.0-20161208181325-20d25e280405
+	gorm.io/driver/mysql v1.6.0
+	gorm.io/driver/sqlite v1.6.0
+	gorm.io/gorm v1.31.2
 )
 
 require (
@@ -37,6 +38,8 @@ require (
 	github.com/emersion/go-textwrapper v0.0.0-20160606182133-d0e65e56babe // indirect
 	github.com/felixge/httpsnoop v1.0.4 // indirect
 	github.com/jinzhu/inflection v1.0.0 // indirect
+	github.com/jinzhu/now v1.1.5 // indirect
+	github.com/mattn/go-sqlite3 v1.14.48 // indirect
 	github.com/mfridman/interpolate v0.0.2 // indirect
 	github.com/sethvargo/go-retry v0.3.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect

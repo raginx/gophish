@@ -62,7 +62,7 @@ func TestLoadConfig(t *testing.T) {
 	if err != nil {
 		t.Fatalf("error unmarshaling config: %v", err)
 	}
-	expectedConfig.MigrationsPath = expectedConfig.MigrationsPath + expectedConfig.DBName
+	expectedConfig.MigrationsPath = expectedConfig.MigrationsPath + expectedConfig.DBName + "/migrations"
 	expectedConfig.TestFlag = false
 	expectedConfig.AdminConf.CSRFKey = ""
 	expectedConfig.Logging = &log.Config{}

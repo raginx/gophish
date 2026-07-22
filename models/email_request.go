@@ -18,12 +18,15 @@ const PreviewPrefix = "preview-"
 // to send a test email to test an SMTP connection.
 // This type implements the mailer.Mail interface.
 type EmailRequest struct {
-	Id          int64        `json:"-"`
-	Template    Template     `json:"template"`
-	TemplateId  int64        `json:"-"`
-	Page        Page         `json:"page"`
-	PageId      int64        `json:"-"`
-	SMTP        SMTP         `json:"smtp"`
+	Id         int64    `json:"-"`
+	Template   Template `json:"template"`
+	TemplateId int64    `json:"-"`
+	Page       Page     `json:"page"`
+	PageId     int64    `json:"-"`
+	// SMTP has no smtp_id/smtp column in email_requests - it's populated
+	// transiently (e.g. for test-email requests), never persisted as its
+	// own relation.
+	SMTP        SMTP         `json:"smtp" gorm:"-"`
 	URL         string       `json:"url"`
 	Tracker     string       `json:"tracker" gorm:"-"`
 	TrackingURL string       `json:"tracking_url" gorm:"-"`

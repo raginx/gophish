@@ -29,3 +29,4 @@ gophish_admin.key
 *.exe
 gophish.db*
 gophish
+ROADMAP.md

@@ -8,8 +8,8 @@ import (
 	"time"
 
 	log "github.com/gophish/gophish/logger"
-	"github.com/jinzhu/gorm"
 	"github.com/oschwald/maxminddb-golang"
+	"gorm.io/gorm"
 )
 
 type mmCity struct {
@@ -28,12 +28,12 @@ type Result struct {
 	CampaignId   int64     `json:"-"`
 	UserId       int64     `json:"-"`
 	RId          string    `json:"id"`
-	Status       string    `json:"status" sql:"not null"`
+	Status       string    `json:"status" gorm:"not null"`
 	IP           string    `json:"ip"`
 	Latitude     float64   `json:"latitude"`
 	Longitude    float64   `json:"longitude"`
 	SendDate     time.Time `json:"send_date"`
-	Reported     bool      `json:"reported" sql:"not null"`
+	Reported     bool      `json:"reported" gorm:"not null"`
 	ModifiedDate time.Time `json:"modified_date"`
 	BaseRecipient
 }

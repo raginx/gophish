@@ -7,15 +7,15 @@ import (
 
 	log "github.com/gophish/gophish/logger"
 	"github.com/gophish/gophish/webhook"
-	"github.com/jinzhu/gorm"
 	"github.com/sirupsen/logrus"
+	"gorm.io/gorm"
 )
 
 // Campaign is a struct representing a created campaign
 type Campaign struct {
 	Id            int64     `json:"id"`
 	UserId        int64     `json:"-"`
-	Name          string    `json:"name" sql:"not null"`
+	Name          string    `json:"name" gorm:"not null"`
 	CreatedDate   time.Time `json:"created_date"`
 	LaunchDate    time.Time `json:"launch_date"`
 	SendByDate    time.Time `json:"send_by_date"`
@@ -26,26 +26,33 @@ type Campaign struct {
 	Page          Page      `json:"page"`
 	Status        string    `json:"status"`
 	Results       []Result  `json:"results,omitempty"`
-	Groups        []Group   `json:"groups,omitempty"`
-	Events        []Event   `json:"timeline,omitempty"`
-	SMTPId        int64     `json:"-"`
-	SMTP          SMTP      `json:"smtp"`
-	URL           string    `json:"url"`
+	// Groups is only used as transient input when creating a campaign
+	// (expanded into Results at creation time); there's no persisted
+	// campaign<->group relation for gorm to manage.
+	Groups []Group `json:"groups,omitempty" gorm:"-"`
+	Events []Event `json:"timeline,omitempty"`
+	SMTPId int64   `json:"-"`
+	SMTP   SMTP    `json:"smtp"`
+	URL    string  `json:"url"`
 }
 
 // CampaignResults is a struct representing the results from a campaign
 type CampaignResults struct {
-	Id      int64    `json:"id"`
-	Name    string   `json:"name"`
-	Status  string   `json:"status"`
-	Results []Result `json:"results,omitempty"`
-	Events  []Event  `json:"timeline,omitempty"`
+	Id     int64  `json:"id"`
+	Name   string `json:"name"`
+	Status string `json:"status"`
+	// Results/Events are populated manually via separate queries, not a
+	// gorm relation - Result/Event's CampaignId satisfies Campaign's FK
+	// convention, not CampaignResults'.
+	Results []Result `json:"results,omitempty" gorm:"-"`
+	Events  []Event  `json:"timeline,omitempty" gorm:"-"`
 }
 
 // CampaignSummaries is a struct representing the overview of campaigns
 type CampaignSummaries struct {
-	Total     int64             `json:"total"`
-	Campaigns []CampaignSummary `json:"campaigns"`
+	Total int64 `json:"total"`
+	// Campaigns is populated manually, not via a gorm relation.
+	Campaigns []CampaignSummary `json:"campaigns" gorm:"-"`
 }
 
 // CampaignSummary is a struct representing the overview of a single camaign
@@ -57,7 +64,8 @@ type CampaignSummary struct {
 	CompletedDate time.Time     `json:"completed_date"`
 	Status        string        `json:"status"`
 	Name          string        `json:"name"`
-	Stats         CampaignStats `json:"stats"`
+	// Stats is populated manually after the query, not via a gorm relation.
+	Stats CampaignStats `json:"stats" gorm:"-"`
 }
 
 // CampaignStats is a struct representing the statistics for a single campaign
@@ -181,17 +189,17 @@ func AddEvent(e *Event, campaignID int64) error {
 // an error is returned. Otherwise, the attribute name is set to [Deleted],
 // indicating the user deleted the attribute (template, smtp, etc.)
 func (c *Campaign) getDetails() error {
-	err := db.Model(c).Related(&c.Results).Error
+	err := db.Model(c).Association("Results").Find(&c.Results)
 	if err != nil {
 		log.Warnf("%s: results not found for campaign", err)
 		return err
 	}
-	err = db.Model(c).Related(&c.Events).Error
+	err = db.Model(c).Association("Events").Find(&c.Events)
 	if err != nil {
 		log.Warnf("%s: events not found for campaign", err)
 		return err
 	}
-	err = db.Table("templates").Where("id=?", c.TemplateId).Find(&c.Template).Error
+	err = db.Table("templates").Where("id=?", c.TemplateId).First(&c.Template).Error
 	if err != nil {
 		if err != gorm.ErrRecordNotFound {
 			return err
@@ -204,7 +212,7 @@ func (c *Campaign) getDetails() error {
 		log.Warn(err)
 		return err
 	}
-	err = db.Table("pages").Where("id=?", c.PageId).Find(&c.Page).Error
+	err = db.Table("pages").Where("id=?", c.PageId).First(&c.Page).Error
 	if err != nil {
 		if err != gorm.ErrRecordNotFound {
 			return err
@@ -212,7 +220,7 @@ func (c *Campaign) getDetails() error {
 		c.Page = Page{Name: "[Deleted]"}
 		log.Warnf("%s: page not found for campaign", err)
 	}
-	err = db.Table("smtp").Where("id=?", c.SMTPId).Find(&c.SMTP).Error
+	err = db.Table("smtp").Where("id=?", c.SMTPId).First(&c.SMTP).Error
 	if err != nil {
 		// Check if the SMTP was deleted
 		if err != gorm.ErrRecordNotFound {
@@ -304,7 +312,10 @@ func getCampaignStats(cid int64) (CampaignStats, error) {
 // GetCampaigns returns the campaigns owned by the given user.
 func GetCampaigns(uid int64) ([]Campaign, error) {
 	cs := []Campaign{}
-	err := db.Model(&User{Id: uid}).Related(&cs).Error
+	// User has no declared Campaigns association field for gorm's
+	// Association() API to use, so query directly on the FK column
+	// instead (User.Id -> Campaign.UserId).
+	err := db.Where("user_id = ?", uid).Find(&cs).Error
 	if err != nil {
 		log.Error(err)
 	}
@@ -371,11 +382,11 @@ func GetCampaignSummary(id int64, uid int64) (CampaignSummary, error) {
 // ref: #1726
 func GetCampaignMailContext(id int64, uid int64) (Campaign, error) {
 	c := Campaign{}
-	err := db.Where("id = ?", id).Where("user_id = ?", uid).Find(&c).Error
+	err := db.Where("id = ?", id).Where("user_id = ?", uid).First(&c).Error
 	if err != nil {
 		return c, err
 	}
-	err = db.Table("smtp").Where("id=?", c.SMTPId).Find(&c.SMTP).Error
+	err = db.Table("smtp").Where("id=?", c.SMTPId).First(&c.SMTP).Error
 	if err != nil {
 		return c, err
 	}
@@ -383,7 +394,7 @@ func GetCampaignMailContext(id int64, uid int64) (Campaign, error) {
 	if err != nil && err != gorm.ErrRecordNotFound {
 		return c, err
 	}
-	err = db.Table("templates").Where("id=?", c.TemplateId).Find(&c.Template).Error
+	err = db.Table("templates").Where("id=?", c.TemplateId).First(&c.Template).Error
 	if err != nil {
 		return c, err
 	}
@@ -397,7 +408,7 @@ func GetCampaignMailContext(id int64, uid int64) (Campaign, error) {
 // GetCampaign returns the campaign, if it exists, specified by the given id and user_id.
 func GetCampaign(id int64, uid int64) (Campaign, error) {
 	c := Campaign{}
-	err := db.Where("id = ?", id).Where("user_id = ?", uid).Find(&c).Error
+	err := db.Where("id = ?", id).Where("user_id = ?", uid).First(&c).Error
 	if err != nil {
 		log.Errorf("%s: campaign not found", err)
 		return c, err
@@ -409,7 +420,7 @@ func GetCampaign(id int64, uid int64) (Campaign, error) {
 // GetCampaignResults returns just the campaign results for the given campaign
 func GetCampaignResults(id int64, uid int64) (CampaignResults, error) {
 	cr := CampaignResults{}
-	err := db.Table("campaigns").Where("id=? and user_id=?", id, uid).Find(&cr).Error
+	err := db.Table("campaigns").Where("id=? and user_id=?", id, uid).First(&cr).Error
 	if err != nil {
 		log.WithFields(logrus.Fields{
 			"campaign_id": id,

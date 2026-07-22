@@ -17,8 +17,10 @@ import (
 	"github.com/gophish/gophish/config"
 
 	log "github.com/gophish/gophish/logger"
-	"github.com/jinzhu/gorm"
-	_ "github.com/mattn/go-sqlite3" // Blank import needed to import sqlite3
+	gormmysql "gorm.io/driver/mysql"
+	"gorm.io/driver/sqlite"
+	"gorm.io/gorm"
+	gormlogger "gorm.io/gorm/logger"
 )
 
 var db *gorm.DB
@@ -152,9 +154,20 @@ func Setup(c *config.Config) error {
 	}
 
 	// Open our database connection
+	var dialector gorm.Dialector
+	if chooseDBDialect(conf.DBName) == "mysql" {
+		dialector = gormmysql.Open(conf.DBPath)
+	} else {
+		dialector = sqlite.Open(conf.DBPath)
+	}
+	gormConf := &gorm.Config{
+		// Logging is handled separately via the gophish logger; keep gorm's
+		// own SQL logging silent to match the previous LogMode(false).
+		Logger: gormlogger.Default.LogMode(gormlogger.Silent),
+	}
 	i := 0
 	for {
-		db, err = gorm.Open(conf.DBName, conf.DBPath)
+		db, err = gorm.Open(dialector, gormConf)
 		if err == nil {
 			break
 		}
@@ -166,20 +179,19 @@ func Setup(c *config.Config) error {
 		log.Warn("waiting for database to be up...")
 		time.Sleep(5 * time.Second)
 	}
-	db.LogMode(false)
-	db.SetLogger(log.Logger)
-	db.DB().SetMaxOpenConns(1)
+	sqlDB, err := db.DB()
 	if err != nil {
 		log.Error(err)
 		return err
 	}
+	sqlDB.SetMaxOpenConns(1)
 	// Migrate up to the latest version
 	err = goose.SetDialect(chooseDBDialect(conf.DBName))
 	if err != nil {
 		log.Error(err)
 		return err
 	}
-	err = goose.Up(db.DB(), conf.MigrationsPath)
+	err = goose.Up(sqlDB, conf.MigrationsPath)
 	if err != nil {
 		log.Error(err)
 		return err

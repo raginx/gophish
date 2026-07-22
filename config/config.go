@@ -61,7 +61,12 @@ func LoadConfig(filepath string) (*Config, error) {
 		config.Logging = &log.Config{}
 	}
 	// Choosing the migrations directory based on the database used.
-	config.MigrationsPath = config.MigrationsPath + config.DBName
+	// The old liamstask/goose recursively walked this path looking for
+	// migration files, so pointing it at the per-dialect directory (e.g.
+	// db/db_sqlite3) happened to work even though the .sql files actually
+	// live one level deeper, in its migrations/ subdirectory. pressly/goose
+	// doesn't recurse, so the path needs to be exact.
+	config.MigrationsPath = config.MigrationsPath + config.DBName + "/migrations"
 	// Explicitly set the TestFlag to false to prevent config.json overrides
 	config.TestFlag = false
 	return config, nil
