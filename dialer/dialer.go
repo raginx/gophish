@@ -87,6 +87,16 @@ var defaultDeny = []string{
 
 // allInternal represents all internal hosts such that the only connections
 // allowed are external ones.
+//
+// Two entries are intentionally NOT here, both because they'd match far
+// more than intended:
+//   - "::/0" (default route) would deny all of IPv6, not just internal
+//     ranges.
+//   - "::ffff:0:0/96" (IPv4-mapped IPv6) would deny all of IPv4 too: Go's
+//     net.ParseIP represents every parsed IPv4 address internally as a
+//     16-byte IPv4-in-IPv6 value, so this range matches plain external
+//     IPv4 addresses like 1.1.1.1 just as much as it matches an actual
+//     IPv4-mapped IPv6 literal. See #9423 upstream.
 var allInternal = []string{
 	"0.0.0.0/8",
 	"127.0.0.0/8",        // IPv4 loopback
@@ -103,8 +113,7 @@ var allInternal = []string{
 	"255.255.255.255/32", // Broadcast
 	"::/128",             // Unspecified address
 	"::1/128",            // IPv6 loopback
-	"::ffff:0:0/96",      // IPv4 mapped addresses.
-	"::ffff:0:0:0/96",    // IPv4 translated addresses.
+	"64:ff9b::/96",       // RFC6052 IPv4/IPv6 translation (well-known prefix)
 	"fe80::/10",          // IPv6 link-local
 	"fc00::/7",           // IPv6 unique local addr
 }
