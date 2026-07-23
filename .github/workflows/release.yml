@@ -1,7 +1,7 @@
 name: Build Gophish Release
 on:
     release:
-        types: [created]
+        types: [created, published]
 
 jobs:
     build:
