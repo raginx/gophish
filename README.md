@@ -1,85 +1,138 @@
-![gophish logo](https://raw.github.com/raginx/gophish/master/static/images/gophish_purple.png)
+<p align="center">
+  <img src="https://raw.github.com/raginx/gophish/master/static/images/gophish_purple.png" alt="gophish logo" width="500">
+</p>
 
-Gophish (fork)
-=====================
+<h1 align="center">Gophish (raginx fork)</h1>
 
-![Build Status](https://github.com/raginx/gophish/workflows/CI/badge.svg)
+<p align="center">
+  <a href="https://github.com/raginx/gophish/actions/workflows/ci.yml"><img src="https://github.com/raginx/gophish/workflows/CI/badge.svg" alt="Build Status"></a>
+  <a href="https://github.com/raginx/gophish/blob/master/LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue" alt="License"></a>
+  <img src="https://img.shields.io/github/go-mod/go-version/raginx/gophish" alt="Go Version">
+  <a href="https://github.com/raginx/gophish/commits/master"><img src="https://img.shields.io/github/last-commit/raginx/gophish" alt="Last Commit"></a>
+</p>
 
-Gophish: Open-Source Phishing Toolkit
+<p align="center"><strong>An actively maintained fork of Gophish, the open-source phishing toolkit.</strong></p>
 
-[Gophish](https://github.com/raginx/gophish/) is an open-source phishing toolkit designed for businesses and penetration testers. It provides the ability to quickly and easily setup and execute phishing engagements and security awareness training.
+---
 
-This is an actively maintained fork of the [upstream project](https://github.com/gophish/gophish), which has had no commits since September 2024. This fork tracks dependency/security updates and selectively pulls in fixes and features from the upstream issue and PR backlog.
+## Why a fork?
 
-### Install
+[Gophish](https://github.com/gophish/gophish) is a widely used, battle-tested
+toolkit for running phishing simulations and security awareness training.
+Unfortunately, **upstream `gophish/gophish` has had no commits since
+September 2024**, `go.mod` still requires Go 1.13, and several of its core
+dependencies carry known CVEs — not great for a tool that security teams
+run inside their own networks.
 
-This fork does not currently publish binary releases. Build from source (see below). If you're looking for official upstream binaries instead, see the [upstream releases page](https://github.com/gophish/gophish/releases/).
+This fork exists to keep that foundation solid without changing what
+Gophish actually does. So far that's meant:
 
-### Building From Source
+- **Dependency & toolchain modernization**: Go 1.13 → 1.25+, a full
+  migration off the long-abandoned `jinzhu/gorm` (v1) to `gorm.io/gorm`
+  (v2), the unmaintained `bitbucket.org/liamstask/goose` replaced with the
+  actively maintained `pressly/goose`, and every dependency brought current.
+  `govulncheck` findings went from 47 reachable vulnerabilities down to a
+  single one with no upstream fix yet available.
+- **Real, verified security fixes** found along the way: a stored XSS in
+  the campaign delete dialog, a crash that could take down the whole
+  process (not just one request), an SSRF-adjacent bug where configuring
+  `allowed_internal_hosts` silently blocked *all* external traffic instead
+  of just internal ranges, and an authorization bypass letting a locked-out
+  user unlock their own account via their still-valid API key.
+- **A rebuilt, minimal frontend toolchain**: Gulp + Webpack (18 npm
+  packages, two build systems quietly stepping on each other) replaced
+  with a single `esbuild` script.
+- **CI that actually catches things**: `govulncheck`, linting, and
+  automated dependency updates, none of which upstream had.
+
+Every change here is tested and verified against a running instance, not
+just "looks right." See [CONTRIBUTING.md](CONTRIBUTING.md) for how this
+fork is maintained and [SECURITY.md](SECURITY.md) for reporting
+vulnerabilities.
+
+## Table of Contents
+
+- [What is Gophish?](#what-is-gophish)
+- [Install](#install)
+- [Building From Source](#building-from-source)
+- [Docker](#docker)
+- [Setup](#setup)
+- [Documentation](#documentation)
+- [Issues](#issues)
+- [Contact](#contact)
+- [License](#license)
+
+## What is Gophish?
+
+Gophish is an open-source phishing toolkit designed for businesses and
+penetration testers. It provides the ability to quickly and easily set up
+and execute phishing engagements and security awareness training —
+landing pages, email templates, target groups, sending profiles, and
+per-recipient tracking, all through a single web UI.
+
+## Install
+
+This fork does not currently publish binary releases. Build from source
+(see below). If you're looking for official upstream binaries instead, see
+the [upstream releases page](https://github.com/gophish/gophish/releases/).
+
+## Building From Source
+
 **Requires Go 1.25 or above.**
 
-```
+```sh
 git clone https://github.com/raginx/gophish.git
 cd gophish
 go build
 ```
 
-After this, you should have a binary called ```gophish``` in the current directory.
+After this, you should have a binary called `gophish` in the current
+directory.
 
-The built frontend assets (`static/js/dist/`, `static/css/dist/`) are checked
-into git, so this is all you need for a normal build. If you change anything
-under `static/js/src/` or `static/css/`, rebuild them with:
-```
+The built frontend assets (`static/js/dist/`, `static/css/dist/`) are
+checked into git, so this is all you need for a normal build. If you
+change anything under `static/js/src/` or `static/css/`, rebuild them
+with:
+
+```sh
 npm install
 npm run build
 ```
 
-### Docker
-You can also use upstream Gophish via the official Docker container [here](https://hub.docker.com/r/gophish/gophish/). This fork does not currently publish its own Docker images.
+## Docker
 
-### Setup
-After running the Gophish binary, open an Internet browser to https://localhost:3333 and login with the default username and password listed in the log output.
-e.g.
+You can also use upstream Gophish via the official Docker container
+[here](https://hub.docker.com/r/gophish/gophish/). This fork does not
+currently publish its own Docker images.
+
+## Setup
+
+After running the Gophish binary, open a browser to `https://localhost:3333`
+and log in with the default username and password printed in the log
+output, e.g.:
+
 ```
 time="2020-07-29T01:24:08Z" level=info msg="Please login with the username admin and the password 4304d5255378177d"
 ```
 
-### Documentation
+## Documentation
 
-Since this fork tracks upstream Gophish closely, the [upstream documentation](http://getgophish.com/documentation) mostly applies.
+Since this fork tracks upstream Gophish closely, the
+[upstream documentation](http://getgophish.com/documentation) mostly
+applies.
 
-### Issues
+## Issues
 
-Found a bug specific to this fork? Please [file an issue](https://github.com/raginx/gophish/issues/new) here. For issues that also affect upstream Gophish, consider checking the [upstream issue tracker](https://github.com/gophish/gophish/issues) as well.
+Found a bug specific to this fork? Please
+[file an issue](https://github.com/raginx/gophish/issues/new) here. For
+issues that also affect upstream Gophish, consider checking the
+[upstream issue tracker](https://github.com/gophish/gophish/issues) as
+well.
 
-### Contact
+## Contact
 
 reinhard [at] westerholt [dot] me
 
-### License
-```
-Gophish - Open-Source Phishing Framework
+## License
 
-The MIT License (MIT)
-
-Copyright (c) 2013 - 2020 Jordan Wright
-Copyright (c) 2026 Reinhard Westerholt (fork-specific modifications)
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software ("Gophish Community Edition") and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in
-all copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-THE SOFTWARE.
-```
+MIT, same as upstream Gophish — see [LICENSE](LICENSE) for the full text.
