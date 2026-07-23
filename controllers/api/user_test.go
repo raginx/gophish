@@ -8,6 +8,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/gorilla/mux"
 	"golang.org/x/crypto/bcrypt"
 
 	ctx "github.com/gophish/gophish/context"
@@ -218,6 +219,107 @@ func TestUnauthorizedSetRole(t *testing.T) {
 	}
 	if response.Message != ErrInsufficientPermission.Error() {
 		t.Fatalf("incorrect error received when setting role. expected %s got %s", ErrInsufficientPermission.Error(), response.Message)
+	}
+}
+
+// TestUnauthorizedUnlockAccount and TestUnauthorizedClearPasswordChangeRequired
+// guard against a regression (upstream issue #9440) where a user could clear
+// AccountLocked or PasswordChangeRequired on their own record via this same
+// self-service PUT endpoint, e.g. undoing a lock an admin just applied.
+//
+// AccountLocked is now also enforce a layer earlier, in the RequireAPIKey
+// middleware (a locked account's API key is rejected outright - see
+// middleware.TestRequireAPIKeyLockedAccount), so going through the full
+// router here would just test that earlier layer instead. To verify this
+// handler's own guard independently (defense in depth: it should still
+// hold even if the middleware layer were ever missing or bypassed), this
+// calls the handler directly rather than through testCtx.apiServer.
+func TestUnauthorizedUnlockAccount(t *testing.T) {
+	setupTest(t)
+	unauthorizedUser := createUnpriviledgedUser(t, models.RoleUser)
+	unauthorizedUser.AccountLocked = true
+	if err := models.PutUser(unauthorizedUser); err != nil {
+		t.Fatalf("error locking account: %v", err)
+	}
+
+	url := fmt.Sprintf("/api/users/%d", unauthorizedUser.Id)
+	payload := &userRequest{
+		Username:      unauthorizedUser.Username,
+		Role:          unauthorizedUser.Role.Slug,
+		AccountLocked: false,
+	}
+	body, err := json.Marshal(payload)
+	if err != nil {
+		t.Fatalf("error marshaling userRequest payload: %v", err)
+	}
+	r := httptest.NewRequest(http.MethodPut, url, bytes.NewBuffer(body))
+	r = mux.SetURLVars(r, map[string]string{"id": fmt.Sprintf("%d", unauthorizedUser.Id)})
+	r = ctx.Set(r, "user", *unauthorizedUser)
+	w := httptest.NewRecorder()
+
+	(&Server{}).User(w, r)
+	expected := http.StatusBadRequest
+	if w.Code != expected {
+		t.Fatalf("unexpected status code received. expected %d got %d", expected, w.Code)
+	}
+	response := &models.Response{}
+	if err := json.NewDecoder(w.Body).Decode(response); err != nil {
+		t.Fatalf("error decoding response payload: %v", err)
+	}
+	if response.Message != ErrInsufficientPermission.Error() {
+		t.Fatalf("incorrect error received when unlocking own account. expected %s got %s", ErrInsufficientPermission.Error(), response.Message)
+	}
+
+	got, err := models.GetUser(unauthorizedUser.Id)
+	if err != nil {
+		t.Fatalf("error getting user: %v", err)
+	}
+	if !got.AccountLocked {
+		t.Fatalf("account should still be locked after the rejected request")
+	}
+}
+
+func TestUnauthorizedClearPasswordChangeRequired(t *testing.T) {
+	testCtx := setupTest(t)
+	unauthorizedUser := createUnpriviledgedUser(t, models.RoleUser)
+	unauthorizedUser.PasswordChangeRequired = true
+	if err := models.PutUser(unauthorizedUser); err != nil {
+		t.Fatalf("error setting password_change_required: %v", err)
+	}
+
+	url := fmt.Sprintf("/api/users/%d", unauthorizedUser.Id)
+	payload := &userRequest{
+		Username:               unauthorizedUser.Username,
+		Role:                   unauthorizedUser.Role.Slug,
+		PasswordChangeRequired: false,
+	}
+	body, err := json.Marshal(payload)
+	if err != nil {
+		t.Fatalf("error marshaling userRequest payload: %v", err)
+	}
+	r := httptest.NewRequest(http.MethodPut, url, bytes.NewBuffer(body))
+	r.Header.Set("Authorization", fmt.Sprintf("Bearer %s", unauthorizedUser.ApiKey))
+	w := httptest.NewRecorder()
+
+	testCtx.apiServer.ServeHTTP(w, r)
+	expected := http.StatusBadRequest
+	if w.Code != expected {
+		t.Fatalf("unexpected status code received. expected %d got %d", expected, w.Code)
+	}
+	response := &models.Response{}
+	if err := json.NewDecoder(w.Body).Decode(response); err != nil {
+		t.Fatalf("error decoding response payload: %v", err)
+	}
+	if response.Message != ErrInsufficientPermission.Error() {
+		t.Fatalf("incorrect error received when clearing password_change_required. expected %s got %s", ErrInsufficientPermission.Error(), response.Message)
+	}
+
+	got, err := models.GetUser(unauthorizedUser.Id)
+	if err != nil {
+		t.Fatalf("error getting user: %v", err)
+	}
+	if !got.PasswordChangeRequired {
+		t.Fatalf("password_change_required should still be true after the rejected request")
 	}
 }
 

@@ -177,6 +177,18 @@ func (as *Server) User(w http.ResponseWriter, r *http.Request) {
 			JSONResponse(w, models.Response{Success: false, Message: ErrInsufficientPermission.Error()}, http.StatusBadRequest)
 			return
 		}
+		// Same reasoning for AccountLocked and PasswordChangeRequired -
+		// without this, a user could clear either flag on their own record
+		// (e.g. un-lock themselves) via this same endpoint, since it
+		// otherwise allows self-service edits.
+		if !hasSystem && ur.AccountLocked != existingUser.AccountLocked {
+			JSONResponse(w, models.Response{Success: false, Message: ErrInsufficientPermission.Error()}, http.StatusBadRequest)
+			return
+		}
+		if !hasSystem && ur.PasswordChangeRequired != existingUser.PasswordChangeRequired {
+			JSONResponse(w, models.Response{Success: false, Message: ErrInsufficientPermission.Error()}, http.StatusBadRequest)
+			return
+		}
 		role, err := models.GetRoleBySlug(ur.Role)
 		if err != nil {
 			JSONResponse(w, models.Response{Success: false, Message: err.Error()}, http.StatusInternalServerError)

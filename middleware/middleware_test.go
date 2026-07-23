@@ -133,6 +133,36 @@ func TestRequireAPIKey(t *testing.T) {
 	}
 }
 
+// TestRequireAPIKeyLockedAccount guards against a regression where a locked
+// account's API key kept working - RequireLogin blocks a locked-out web
+// session (indirectly, via Login refusing to start one), but RequireAPIKey
+// didn't check AccountLocked at all, so a locked user's API key remained a
+// fully working bearer credential regardless of the lock. See upstream
+// issue #9440.
+func TestRequireAPIKeyLockedAccount(t *testing.T) {
+	testCtx := setupTest(t)
+	u, err := models.GetUserByAPIKey(testCtx.apiKey)
+	if err != nil {
+		t.Fatalf("error getting user: %v", err)
+	}
+	u.AccountLocked = true
+	if err := models.PutUser(&u); err != nil {
+		t.Fatalf("error locking account: %v", err)
+	}
+
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	query := req.URL.Query()
+	query.Set("api_key", testCtx.apiKey)
+	req.URL.RawQuery = query.Encode()
+	response := httptest.NewRecorder()
+	RequireAPIKey(successHandler).ServeHTTP(response, req)
+	expected := http.StatusUnauthorized
+	got := response.Code
+	if got != expected {
+		t.Fatalf("locked account's API key should be rejected. expected status %d got %d", expected, got)
+	}
+}
+
 func TestCORSHeaders(t *testing.T) {
 	setupTest(t)
 	req := httptest.NewRequest(http.MethodOptions, "/", nil)

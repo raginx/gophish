@@ -102,6 +102,15 @@ func RequireAPIKey(handler http.Handler) http.Handler {
 			JSONError(w, http.StatusUnauthorized, "Invalid API Key")
 			return
 		}
+		// RequireLogin enforces this for the web session path (indirectly,
+		// via the Login handler refusing to start a new session); the API
+		// key path bypassed it entirely, since an API key stays valid
+		// regardless of account state. A locked account should have zero
+		// access via any path.
+		if u.AccountLocked {
+			JSONError(w, http.StatusUnauthorized, "Account is locked")
+			return
+		}
 		r = ctx.Set(r, "user", u)
 		r = ctx.Set(r, "user_id", u.Id)
 		r = ctx.Set(r, "api_key", ak)
