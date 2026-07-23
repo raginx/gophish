@@ -109,6 +109,7 @@ type mockMessage struct {
 	getdialer    func() (Dialer, error)
 	err          error
 	finished     bool
+	sendRate     int
 }
 
 func newMockMessage(from string, to []string, msg io.WriterTo) *mockMessage {
@@ -164,6 +165,14 @@ func (mm *mockMessage) Generate(message *gomail.Message) error {
 
 func (mm *mockMessage) GetSmtpFrom() (string, error) {
 	return mm.from, nil
+}
+
+func (mm *mockMessage) GetSendRate() int {
+	return mm.sendRate
+}
+
+func (mm *mockMessage) setSendRate(sendRate int) {
+	mm.sendRate = sendRate
 }
 
 func (mm *mockMessage) Success() error {

@@ -184,3 +184,10 @@ func (s *EmailRequest) Generate(msg *gomail.Message) error {
 func (s *EmailRequest) GetDialer() (mailer.Dialer, error) {
 	return s.SMTP.GetDialer()
 }
+
+// GetSendRate returns the send rate configured on the request's SMTP
+// profile. Test emails are single messages, so this has no practical
+// effect, but it satisfies the mailer.Mail interface.
+func (s *EmailRequest) GetSendRate() int {
+	return s.SMTP.SendRate
+}

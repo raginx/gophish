@@ -22,6 +22,34 @@ func (s *ModelsSuite) TestPostSMTP(c *check.C) {
 	c.Assert(len(ss), check.Equals, 1)
 }
 
+func (s *ModelsSuite) TestPostSMTPSendRate(c *check.C) {
+	smtp := SMTP{
+		Name:        "Test SMTP",
+		Host:        "1.1.1.1:25",
+		FromAddress: "foo@example.com",
+		UserId:      1,
+		SendRate:    5,
+	}
+	err := PostSMTP(&smtp)
+	c.Assert(err, check.Equals, nil)
+
+	got, err := GetSMTP(smtp.Id, 1)
+	c.Assert(err, check.Equals, nil)
+	c.Assert(got.SendRate, check.Equals, 5)
+}
+
+func (s *ModelsSuite) TestPostSMTPNegativeSendRate(c *check.C) {
+	smtp := SMTP{
+		Name:        "Test SMTP",
+		Host:        "1.1.1.1:25",
+		FromAddress: "foo@example.com",
+		UserId:      1,
+		SendRate:    -1,
+	}
+	err := PostSMTP(&smtp)
+	c.Assert(err, check.Equals, ErrInvalidSendRate)
+}
+
 func (s *ModelsSuite) TestPostSMTPNoHost(c *check.C) {
 	smtp := SMTP{
 		Name:        "Test SMTP",

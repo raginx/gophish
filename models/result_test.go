@@ -115,6 +115,15 @@ func (s *ModelsSuite) TestDuplicateResults(ch *check.C) {
 
 	ch.Assert(PostCampaign(&c, c.UserId), check.Equals, nil)
 	ch.Assert(len(c.Results), check.Equals, 2)
-	ch.Assert(c.Results[0].Email, check.Equals, group.Targets[0].Email)
-	ch.Assert(c.Results[1].Email, check.Equals, group.Targets[2].Email)
+	// Results are shuffled (see TestPostCampaignShufflesTargets in
+	// campaign_test.go), so we can't assert on positional order here -
+	// just that deduplication produced exactly the expected set of emails.
+	gotEmails := map[string]bool{}
+	for _, r := range c.Results {
+		gotEmails[r.Email] = true
+	}
+	ch.Assert(gotEmails, check.DeepEquals, map[string]bool{
+		"test1@example.com": true,
+		"test2@example.com": true,
+	})
 }

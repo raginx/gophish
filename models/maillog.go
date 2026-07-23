@@ -145,6 +145,21 @@ func (m *MailLog) GetDialer() (mailer.Dialer, error) {
 	return c.SMTP.GetDialer()
 }
 
+// GetSendRate returns the send rate (emails/sec) configured on the
+// maillog's campaign's SMTP profile. Returns 0 (unlimited) if the campaign
+// can't be looked up.
+func (m *MailLog) GetSendRate() int {
+	c := m.cachedCampaign
+	if c == nil {
+		campaign, err := GetCampaignMailContext(m.CampaignId, m.UserId)
+		if err != nil {
+			return 0
+		}
+		c = &campaign
+	}
+	return c.SMTP.SendRate
+}
+
 // CacheCampaign allows bulk-mail workers to cache the otherwise expensive
 // campaign lookup operation by providing a pointer to the campaign here.
 func (m *MailLog) CacheCampaign(campaign *Campaign) error {

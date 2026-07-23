@@ -8,6 +8,7 @@ import (
 	"net/textproto"
 	"reflect"
 	"testing"
+	"time"
 )
 
 func generateMessages(dialer Dialer) []Mail {
@@ -132,6 +133,57 @@ func TestMailWorkerStartEmptyQueue(t *testing.T) {
 	}
 	if len(got) != len(messages) {
 		t.Fatalf("Unexpected number of messages received after an empty queue. Expected %d Got %d", len(messages), len(got))
+	}
+}
+
+// TestSendRateLimiting verifies that a batch of mail with a configured send
+// rate is actually throttled, rather than sent as fast as possible. Uses a
+// low rate (10/sec, burst 1) so the minimum expected duration for 5 messages
+// is (5-1)/10 = 400ms; asserts we're clearly above that floor without
+// pinning to an exact duration, to avoid CI timing flakiness.
+func TestSendRateLimiting(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	mw := NewMailWorker()
+	go func(ctx context.Context) {
+		mw.Start(ctx)
+	}(ctx)
+
+	sender := newMockSender()
+	dialer := newMockDialer()
+	dialer.setDial(func() (Sender, error) {
+		return sender, nil
+	})
+
+	numMessages := 5
+	sendRate := 10
+	messages := make([]Mail, numMessages)
+	for i := 0; i < numMessages; i++ {
+		mm := newMockMessage("from@example.com", []string{"to@example.com"}, bytes.NewBuffer([]byte("email")))
+		mm.setDialer(func() (Dialer, error) { return dialer, nil })
+		mm.setSendRate(sendRate)
+		messages[i] = mm
+	}
+
+	start := time.Now()
+	mw.Queue(messages)
+
+	got := 0
+	for range sender.messageChan {
+		got++
+	}
+	elapsed := time.Since(start)
+
+	if got != numMessages {
+		t.Fatalf("Unexpected number of messages received. Expected %d Got %d", numMessages, got)
+	}
+	minExpected := time.Duration(numMessages-1) * time.Second / time.Duration(sendRate)
+	// Require at least 75% of the theoretical minimum - enough to prove
+	// throttling is happening without being flaky about exact timing.
+	threshold := minExpected * 3 / 4
+	if elapsed < threshold {
+		t.Fatalf("Messages sent faster than the configured send rate allows. Expected at least %s, took %s", threshold, elapsed)
 	}
 }
 

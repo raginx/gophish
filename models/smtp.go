@@ -32,17 +32,20 @@ func (d *Dialer) Dial() (mailer.Sender, error) {
 
 // SMTP contains the attributes needed to handle the sending of campaign emails
 type SMTP struct {
-	Id               int64     `json:"id" gorm:"column:id;primaryKey"`
-	UserId           int64     `json:"-" gorm:"column:user_id"`
-	Interface        string    `json:"interface_type" gorm:"column:interface_type"`
-	Name             string    `json:"name"`
-	Host             string    `json:"host"`
-	Username         string    `json:"username,omitempty"`
-	Password         string    `json:"password,omitempty"`
-	FromAddress      string    `json:"from_address"`
-	IgnoreCertErrors bool      `json:"ignore_cert_errors"`
-	Headers          []Header  `json:"headers"`
-	ModifiedDate     time.Time `json:"modified_date"`
+	Id               int64  `json:"id" gorm:"column:id;primaryKey"`
+	UserId           int64  `json:"-" gorm:"column:user_id"`
+	Interface        string `json:"interface_type" gorm:"column:interface_type"`
+	Name             string `json:"name"`
+	Host             string `json:"host"`
+	Username         string `json:"username,omitempty"`
+	Password         string `json:"password,omitempty"`
+	FromAddress      string `json:"from_address"`
+	IgnoreCertErrors bool   `json:"ignore_cert_errors"`
+	// SendRate is the maximum number of emails to send per second for this
+	// profile. 0 means unlimited.
+	SendRate     int       `json:"send_rate"`
+	Headers      []Header  `json:"headers"`
+	ModifiedDate time.Time `json:"modified_date"`
 }
 
 // Header contains the fields and methods for a sending profile to have
@@ -69,6 +72,9 @@ var ErrHostNotSpecified = errors.New("No SMTP Host specified")
 // ErrInvalidHost indicates that the SMTP server string is invalid
 var ErrInvalidHost = errors.New("Invalid SMTP server address")
 
+// ErrInvalidSendRate indicates that a negative send rate was provided
+var ErrInvalidSendRate = errors.New("send rate cannot be negative")
+
 // TableName specifies the database tablename for Gorm to use
 func (s SMTP) TableName() string {
 	return "smtp"
@@ -83,6 +89,8 @@ func (s *SMTP) Validate() error {
 		return ErrHostNotSpecified
 	case !validateFromAddress(s.FromAddress):
 		return ErrInvalidFromAddress
+	case s.SendRate < 0:
+		return ErrInvalidSendRate
 	}
 	_, err := mail.ParseAddress(s.FromAddress)
 	if err != nil {
